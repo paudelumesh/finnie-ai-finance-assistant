@@ -1,0 +1,25 @@
+# Non-secret settings. API keys live in .env (see .env.example).
+llm:
+  provider: openai          # openai | gemini
+  model: gpt-4o-mini
+  temperature: 0.2
+  timeout_seconds: 30
+  max_retries: 3
+
+market_data:
+  provider: yfinance        # yfinance | alphavantage
+  cache_ttl_seconds: 1800   # 30 minutes
+  use_mock_on_failure: true
+
+rag:
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  chunk_size: 800
+  chunk_overlap: 120
+  top_k: 4
+  min_score: 0.25
+
+router:
+  confidence_threshold: 0.6
+
+logging:
+  level: INFO
