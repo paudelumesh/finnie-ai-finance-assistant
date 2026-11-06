@@ -17,10 +17,15 @@ SAMPLE_CSV = ROOT_DIR / "data_samples" / "sample_portfolio.csv"
 TEMPLATE = pd.DataFrame({"symbol": ["VOO", "BND", ""], "shares": [10.0, 20.0, None], "cost_basis": [None, None, None]})
 
 
+def _text(value) -> str:
+    """Blank cells arrive as None or NaN (NaN is truthy), so test for missing explicitly."""
+    return "" if value is None or pd.isna(value) else str(value).strip()
+
+
 def holdings_from_frame(df: pd.DataFrame) -> list[Holding]:
     out = []
     for row in df.to_dict("records"):
-        sym = str(row.get("symbol") or "").strip().upper()
+        sym = _text(row.get("symbol")).upper()
         if not sym:
             continue
         shares = row.get("shares")

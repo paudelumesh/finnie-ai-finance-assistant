@@ -1,0 +1,7 @@
+services:
+  finnie:
+    build: .
+    ports:
+      - "8501:8501"
+    env_file: .env          # OPENAI_API_KEY (required), TAVILY_API_KEY (optional)
+    restart: unless-stopped

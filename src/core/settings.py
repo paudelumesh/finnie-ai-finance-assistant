@@ -58,6 +58,8 @@ class Secrets(BaseModel):
     google_api_key: str | None = None
     alpha_vantage_api_key: str | None = None
     tavily_api_key: str | None = None
+    auth_email: str | None = None
+    auth_password_hash: str | None = None  # salted scrypt hash, never the password
 
 
 class Settings(BaseModel):
@@ -94,6 +96,8 @@ def load_settings(config_path: Path | str = DEFAULT_CONFIG_PATH) -> Settings:
         "google_api_key": _read_secret("GOOGLE_API_KEY"),
         "alpha_vantage_api_key": _read_secret("ALPHA_VANTAGE_API_KEY"),
         "tavily_api_key": _read_secret("TAVILY_API_KEY"),
+        "auth_email": _read_secret("AUTH_EMAIL"),
+        "auth_password_hash": _read_secret("AUTH_PASSWORD_HASH"),
     }
     return Settings.model_validate(raw)
 

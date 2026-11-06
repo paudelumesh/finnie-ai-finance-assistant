@@ -8,8 +8,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # make `src` impor
 
 import streamlit as st  # noqa: E402
 
-from src.web_app import chat_tab, goals_tab, knowledge_tab, markets_tab, portfolio_tab  # noqa: E402
+from src.web_app import about_menu, chat_tab, goals_tab, knowledge_tab, markets_tab, portfolio_tab  # noqa: E402
 from src.web_app.components import disclaimer_banner  # noqa: E402
+from src.web_app.login import logout, require_login  # noqa: E402
 from src.web_app.runtime import Runtime, create_runtime, default_session  # noqa: E402
 
 RISK = ["low", "moderate", "high"]
@@ -28,9 +29,14 @@ def _startup_error(exc: Exception) -> None:
     st.stop()
 
 
-def _sidebar() -> None:
+def _sidebar(email: str) -> None:
     ss = st.session_state
     with st.sidebar:
+        st.caption(f"Signed in as {email}")
+        if st.button("Sign out", width="stretch"):
+            logout()
+            st.rerun()
+        st.divider()
         st.header("About you")
         st.caption("Finnie tailors explanations and goal assumptions to this.")
         ss.profile["risk_tolerance"] = st.selectbox(
@@ -38,6 +44,7 @@ def _sidebar() -> None:
         ss.profile["knowledge_level"] = st.selectbox(
             "Investing knowledge", LEVELS, index=LEVELS.index(ss.profile["knowledge_level"]))
         st.divider()
+        about_menu.render_menu()
         if st.button("🗑️ New conversation", width="stretch"):
             ss.chat, ss.thread_id = [], default_session()["thread_id"]
             st.rerun()
@@ -46,6 +53,9 @@ def _sidebar() -> None:
 
 def main() -> None:
     st.set_page_config(page_title="Finnie · AI Finance Assistant", page_icon="💬", layout="wide")
+    email = require_login()  # nothing below (model, services, data) starts until this passes
+    if not email:
+        return
     for key, value in default_session().items():
         st.session_state.setdefault(key, value)
     try:
@@ -54,7 +64,7 @@ def main() -> None:
         _startup_error(exc)
         return
 
-    _sidebar()
+    _sidebar(email)
     st.title("💬 Finnie")
     st.caption("Your friendly guide to investing, with plain-English answers.")
     disclaimer_banner()

@@ -12,6 +12,7 @@ from src.rag.chunker import chunk_articles
 from src.rag.embeddings import HashEmbedder
 from src.rag.retriever import Retriever
 from src.rag.vector_store import VectorStore
+from src.core.auth import new_session
 from src.web_app import runtime
 from src.workflow.factory import Services
 from src.workflow.graph import ChatResult
@@ -45,6 +46,7 @@ def app(monkeypatch):
     )
     monkeypatch.setattr(runtime, "create_runtime", lambda s=None: runtime.Runtime(services, runtime.AsyncRunner()))
     at = AppTest.from_file(APP, default_timeout=30)
+    at.session_state["auth"] = new_session("owner@example.com")
     at.services = services
     return at.run()
 
@@ -79,7 +81,7 @@ def test_sidebar_profile_flows_to_workflow(app):
 def test_new_conversation_clears_history(app):
     app.chat_input[0].set_value("hi").run()
     first_thread = app.session_state.thread_id
-    app.sidebar.button[0].click().run()
+    next(b for b in app.sidebar.button if "New conversation" in b.label).click().run()
     assert app.session_state.chat == [] and app.session_state.thread_id != first_thread
 
 
@@ -127,3 +129,22 @@ def test_knowledge_search_and_browse(app):
     assert any("Compound interest" in m.value for m in app.markdown)
     next(s for s in app.selectbox if s.label == "Category").select("funds").run()
     assert not app.exception
+
+
+def test_about_menu_items_open_without_errors(app):
+    from src.web_app.about_menu import MENU
+    assert list(MENU) == ["🏗️ Architecture", "🧭 High-level design",
+                          "🔬 Technical architecture in detail", "🧰 Technologies used"]
+    for label in MENU:
+        next(b for b in app.button if b.key == f"about_{label}").click().run()
+        assert not app.exception, label
+
+
+def test_diagrams_are_valid_dot_and_content_is_consistent():
+    from src.web_app import about_content as c
+    for dot in (c.SYSTEM_DIAGRAM, c.FLOW_DIAGRAM, c.GRAPH_DIAGRAM, c.RESILIENCE_DIAGRAM, c.RAG_DIAGRAM):
+        assert dot.startswith("digraph G {") and dot.count("{") == dot.count("}")
+    assert len(c.AGENTS) == 6 and len(c.TECHNOLOGIES) >= 10
+    for node in ("agent_finance_qa", "agent_portfolio_analysis", "agent_market_analysis",
+                 "agent_goal_planning", "agent_tax_education", "agent_news_synthesizer", "guardrail"):
+        assert node in c.GRAPH_DIAGRAM

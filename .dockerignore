@@ -1,0 +1,12 @@
+.venv/
+.git/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+src/data/index/
+*.faiss
+.streamlit/secrets.toml

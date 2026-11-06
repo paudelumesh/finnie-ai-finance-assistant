@@ -34,3 +34,6 @@ Deadline: ~Nov 22, 2026 (4 weeks), ~15–20 h/week. Python 3.12 venv.
 2. Portfolio CSV upload + analysis
 3. Live market lookup with freshness indicator
 4. Multi-intent query showing agent fan-out
+
+## Status
+Phases 1-4 committed. Phase 5: tests (200, ~98% coverage), README, docs/DESIGN.md, Dockerfile, MCP server and About menu done. Pending: human review of articles, demo video, Docker/Streamlit Cloud verification.
