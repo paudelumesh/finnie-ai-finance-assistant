@@ -1,0 +1,90 @@
+# Topic outline for the knowledge base. One article is drafted per topic.
+# `source` keys map to REFERENCES in scripts/generate_articles.py.
+basics:
+  - Saving vs investing
+  - Compound interest
+  - The rule of 72
+  - Inflation and purchasing power
+  - Emergency funds
+  - Risk and return
+  - Time value of money
+  - Net worth and budgeting basics
+stocks:
+  - What is a stock
+  - How stock exchanges work
+  - Market capitalization
+  - Dividends and dividend yield
+  - Price-to-earnings ratio
+  - Growth vs value investing
+  - Reading a stock quote
+  - Bull and bear markets
+bonds:
+  - What is a bond
+  - Bond yields and prices
+  - Treasury securities
+  - Corporate and municipal bonds
+  - Credit ratings
+  - Interest rate risk
+funds:
+  - ETFs explained
+  - Mutual funds explained
+  - ETFs vs mutual funds
+  - Index funds
+  - Expense ratios and fees
+  - Target-date funds
+  - Active vs passive investing
+portfolio:
+  - Diversification
+  - Asset allocation
+  - Rebalancing
+  - Dollar-cost averaging
+  - Risk tolerance and risk capacity
+  - Correlation between assets
+  - Modern portfolio theory basics
+  - Measuring portfolio performance
+  - Sector and geographic diversification
+retirement:
+  - 401(k) basics
+  - Traditional IRA
+  - Roth IRA
+  - 401(k) vs IRA vs Roth
+  - Employer match
+  - Social Security basics
+  - How much to save for retirement
+  - Required minimum distributions
+  - Health Savings Accounts
+tax:
+  - Capital gains short vs long term
+  - Tax-advantaged accounts overview
+  - Taxation of dividends and interest
+  - Tax-loss harvesting
+  - Taxable brokerage accounts
+  - 529 education savings plans
+  - Cost basis explained
+goals:
+  - Setting SMART financial goals
+  - Saving for a home down payment
+  - Paying off debt vs investing
+  - Saving for college
+  - Planning for a big purchase
+  - Retirement withdrawal rates
+market:
+  - What moves the stock market
+  - Interest rates and the Federal Reserve
+  - Economic indicators
+  - Market volatility and the VIX
+  - Reading a stock chart
+  - Market indexes such as the S&P 500
+  - Recessions and market cycles
+risks:
+  - Avoiding common investing mistakes
+  - Behavioral biases in investing
+  - Investment scams and red flags
+  - Understanding leverage and margin
+  - Cryptocurrency basics and risks
+  - Understanding investment fees
+glossary:
+  - Financial terms A to F
+  - Financial terms G to M
+  - Financial terms N to S
+  - Financial terms T to Z
