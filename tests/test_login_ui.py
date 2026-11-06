@@ -36,7 +36,9 @@ def make_app(monkeypatch):
         services = Services(FakeWorkflow(), MarketDataService(MockProvider()), NewsService(SampleProvider()),
                             Retriever(store, 3, 0.1), get_settings())
         monkeypatch.setattr(runtime, "create_runtime", lambda s=None: runtime.Runtime(services, runtime.AsyncRunner()))
-        monkeypatch.setattr(login, "get_settings", lambda: settings or settings_with())
+        chosen = settings or settings_with()
+        monkeypatch.setattr(login, "load_auth_credentials",
+                            lambda: (chosen.secrets.auth_email, chosen.secrets.auth_password_hash))
         monkeypatch.setattr(login, "FAILURE_DELAY_SECONDS", 0)
         return AppTest.from_file(APP, default_timeout=30)
     return build
@@ -127,3 +129,58 @@ def test_misconfigured_auth_fails_closed(make_app, settings):
     assert not at.exception
     assert any("This app is locked" in e.value for e in at.error)
     assert len(at.text_input) == 0 and len(at.tabs) == 0 and not at.chat_input
+
+
+# ---- reading the credentials from st.secrets (the Streamlit Cloud path) ----------------------
+@pytest.fixture
+def cloud_like(monkeypatch, tmp_path):
+    """No .env file and no AUTH env vars: credentials can only come from st.secrets, as on Cloud."""
+    from src.core import settings as settings_module
+    monkeypatch.setattr(settings_module, "ROOT_DIR", tmp_path)
+    for name in ("AUTH_EMAIL", "AUTH_PASSWORD_HASH", "OPENAI_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    settings_module.get_settings.cache_clear()
+    st.cache_resource.clear()
+    yield
+    settings_module.get_settings.cache_clear()
+
+
+def _cloud_app(monkeypatch, secrets):
+    store = VectorStore.build(chunk_articles(ARTICLES, 400, 50), HashEmbedder())
+    services = Services(FakeWorkflow(), MarketDataService(MockProvider()), NewsService(SampleProvider()),
+                        Retriever(store, 3, 0.1), get_settings())
+    monkeypatch.setattr(runtime, "create_runtime", lambda s=None: runtime.Runtime(services, runtime.AsyncRunner()))
+    monkeypatch.setattr(login, "FAILURE_DELAY_SECONDS", 0)
+    at = AppTest.from_file(APP, default_timeout=30)
+    for k, v in secrets.items():
+        at.secrets[k] = v
+    return at
+
+
+def test_credentials_in_st_secrets_unlock_the_login_form(cloud_like, monkeypatch):
+    at = _cloud_app(monkeypatch, {"AUTH_EMAIL": EMAIL, "AUTH_PASSWORD_HASH": HASH}).run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert not at.error, [e.value for e in at.error]  # not locked
+    assert [t.label for t in at.text_input] == ["Email", "Password"]
+    at = sign_in(at)
+    assert "auth" in at.session_state and [t.label for t in at.tabs][:2] == ["Chat", "Portfolio"]
+
+
+def test_missing_st_secrets_keeps_the_app_locked(cloud_like, monkeypatch):
+    at = _cloud_app(monkeypatch, {"OPENAI_API_KEY": "sk-x"}).run()
+    assert any("Login is not configured" in e.value for e in at.error) and len(at.text_input) == 0
+
+
+def test_credentials_are_read_fresh_not_from_the_settings_cache(cloud_like, monkeypatch):
+    """Regression: an early get_settings() call (before secrets existed) must not lock the login forever."""
+    from src.core import settings as settings_module
+    assert settings_module.get_settings().secrets.auth_email is None  # cache now holds 'no credentials'
+    at = _cloud_app(monkeypatch, {"AUTH_EMAIL": EMAIL, "AUTH_PASSWORD_HASH": HASH}).run()
+    assert [t.label for t in at.text_input] == ["Email", "Password"]
+
+
+def test_locked_screen_names_only_the_missing_setting(cloud_like, monkeypatch):
+    at = _cloud_app(monkeypatch, {"AUTH_EMAIL": EMAIL, "OPENAI_API_KEY": "sk-secret-name-check"}).run()
+    msg = at.error[0].value
+    assert "AUTH_PASSWORD_HASH not found" in msg and "AUTH_EMAIL not found" not in msg
+    assert "OPENAI_API_KEY" not in msg and "sk-secret" not in msg and EMAIL not in msg

@@ -65,10 +65,12 @@ class AuthConfig:
     @classmethod
     def from_values(cls, email: str | None, password_hash: str | None) -> "AuthConfig":
         """Fail closed: missing or malformed configuration raises, it never means 'no login'."""
-        if not email or not email.strip() or not password_hash or not password_hash.strip():
+        missing = [name for name, value in (("AUTH_EMAIL", email), ("AUTH_PASSWORD_HASH", password_hash))
+                   if not value or not value.strip()]
+        if missing:  # names only, never values or other key names (this text is shown to anonymous visitors)
             raise AuthConfigError(
-                "Login is not configured. Set AUTH_EMAIL and AUTH_PASSWORD_HASH "
-                "(create the hash with `python -m scripts.set_password`)."
+                f"Login is not configured: {' and '.join(missing)} not found in the app's secrets. "
+                "Set AUTH_EMAIL and AUTH_PASSWORD_HASH (create the hash with `python -m scripts.set_password`)."
             )
         _parse(password_hash)  # validates the format now rather than at first login
         return cls(email.strip().lower(), password_hash.strip())

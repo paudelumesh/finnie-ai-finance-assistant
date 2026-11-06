@@ -8,7 +8,7 @@ import streamlit as st
 from src.core.auth import (
     AuthConfig, AuthConfigError, LoginThrottle, check_credentials, new_session, session_valid,
 )
-from src.core.settings import get_settings
+from src.core.settings import load_auth_credentials
 
 FAILURE_DELAY_SECONDS = 1.0  # slows down guessing from a single connection
 
@@ -19,8 +19,7 @@ def _throttle() -> LoginThrottle:
 
 
 def _config() -> AuthConfig:
-    s = get_settings().secrets
-    return AuthConfig.from_values(s.auth_email, s.auth_password_hash)
+    return AuthConfig.from_values(*load_auth_credentials())
 
 
 def attempt_login(email: str, password: str, cfg: AuthConfig, throttle: LoginThrottle) -> str:

@@ -85,6 +85,16 @@ def _read_secret(name: str) -> str | None:
         return None
 
 
+def load_auth_credentials() -> tuple[str | None, str | None]:
+    """Read the login email and password hash fresh on every call (never from the settings cache).
+
+    Settings are cached for the life of the process. If the cache were filled before the secrets
+    were readable, a missing login would stay missing until a full restart.
+    """
+    load_dotenv(ROOT_DIR / ".env")
+    return _read_secret("AUTH_EMAIL"), _read_secret("AUTH_PASSWORD_HASH")
+
+
 def load_settings(config_path: Path | str = DEFAULT_CONFIG_PATH) -> Settings:
     load_dotenv(ROOT_DIR / ".env")
     raw: dict[str, Any] = {}
