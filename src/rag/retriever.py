@@ -51,3 +51,13 @@ class Retriever:
             if preferred and (not hits or preferred[0].score >= hits[0].score - margin):
                 hits = preferred
         return RetrievalResult(hits)
+
+    def retrieve_preferring(
+        self, query: str, categories: tuple[str, ...], bonus: float = 0.06
+    ) -> RetrievalResult:
+        """Rank unfiltered hits with a small score bonus for preferred categories."""
+        pool = self.store.search(query, self.top_k * 3, None, self.min_score)
+        ranked = sorted(
+            pool, key=lambda h: h.score + (bonus if h.chunk.category in categories else 0), reverse=True
+        )
+        return RetrievalResult(ranked[: self.top_k])

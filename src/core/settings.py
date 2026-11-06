@@ -28,6 +28,13 @@ class MarketDataSettings(BaseModel):
     use_mock_on_failure: bool = True
 
 
+class NewsSettings(BaseModel):
+    provider: str = "tavily"
+    cache_ttl_seconds: int = 1800
+    max_results: int = 5
+    use_sample_on_failure: bool = True
+
+
 class RAGSettings(BaseModel):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     chunk_size: int = 800
@@ -56,6 +63,7 @@ class Secrets(BaseModel):
 class Settings(BaseModel):
     llm: LLMSettings = Field(default_factory=LLMSettings)
     market_data: MarketDataSettings = Field(default_factory=MarketDataSettings)
+    news: NewsSettings = Field(default_factory=NewsSettings)
     rag: RAGSettings = Field(default_factory=RAGSettings)
     router: RouterSettings = Field(default_factory=RouterSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)

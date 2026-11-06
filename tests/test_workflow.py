@@ -106,7 +106,7 @@ async def test_new_agent_registered_later_is_used():
 
     wf, _ = build(route_json("news_synthesizer"), extra_agents={"news_synthesizer": NewsAgent(FakeLLM())})
     r = await wf.chat("latest headlines", "t6")
-    assert r.content == "NEWS SUMMARY" and r.agents == ["news_synthesizer"]
+    assert r.content.startswith("NEWS SUMMARY") and r.agents == ["news_synthesizer"]
 
 
 async def test_memory_across_turns_and_isolated_threads():
@@ -167,7 +167,7 @@ async def test_all_agents_failing_returns_friendly_fallback():
 
     wf, _ = build(route_json("finance_qa"), extra_agents={"finance_qa": Broken(FakeLLM())})
     r = await wf.chat("anything", "t11")
-    assert r.content == BaseAgent.fallback_message
+    assert r.content.startswith(BaseAgent.fallback_message)
 
 
 async def test_slow_agent_times_out():
@@ -200,3 +200,18 @@ async def test_non_json_context_objects_are_made_checkpoint_safe():
     wf, _ = build(route_json("portfolio_analysis"))
     r = await wf.chat("analyse my portfolio", "t14", context={"portfolio": [Holding("VOO", 2)]})
     assert r.responses[0]["data"]["analysis"]["total_value"] > 0
+
+
+async def test_guardrail_runs_in_graph_and_memory_stores_guarded_text():
+    wf, _ = build(route_json("finance_qa"))
+    r = await wf.chat("Should I buy AAPL?", "g1")
+    assert r.guardrail["flagged"] and r.content.startswith("**I can't tell you what to buy")
+    assert wf.history("g1")[-1]["content"] == r.content
+
+
+async def test_clean_answer_not_flagged_and_off_topic_has_no_disclaimer():
+    wf, _ = build(route_json("finance_qa"))
+    assert not (await wf.chat("what is an ETF?", "g2")).guardrail["flagged"]
+    wf2, _ = build(route_json("off_topic", conf=0.9))
+    r = await wf2.chat("who won the game", "g3")
+    assert r.content == OFF_TOPIC_MESSAGE and DISCLAIMER not in r.content

@@ -16,6 +16,7 @@ from langgraph.types import Send
 from src.core.base_agent import DISCLAIMER, AgentResponse, BaseAgent
 from src.core.llm import LLMClient
 from src.utils.logging import get_logger
+from src.workflow.guardrail import apply_guardrail
 from src.workflow.router import AGENT_INTENTS, OFF_TOPIC, RouteDecision, Router
 from src.workflow.state import FinnieState, jsonable, response_to_dict
 
@@ -50,6 +51,7 @@ class ChatResult:
     sources: list[dict]
     agents: list[str]
     route: dict[str, Any]
+    guardrail: dict[str, Any] = field(default_factory=dict)
     responses: list[dict] = field(default_factory=list)
     thread_id: str = "default"
     turn: int = 0
@@ -76,6 +78,7 @@ class FinnieWorkflow:
         g.add_node("router", self._router_node)
         g.add_node("refuse", self._refuse_node)
         g.add_node("synthesize", self._synthesize_node)
+        g.add_node("guardrail", self._guardrail_node)
         destinations = ["refuse"]
         for name in self.agents:
             node = f"agent_{name}"
@@ -85,7 +88,8 @@ class FinnieWorkflow:
         g.add_edge(START, "router")
         g.add_conditional_edges("router", self._dispatch, destinations)
         g.add_edge("refuse", "synthesize")
-        g.add_edge("synthesize", END)
+        g.add_edge("synthesize", "guardrail")
+        g.add_edge("guardrail", END)
         return g.compile(checkpointer=checkpointer)
 
     # ---- nodes ----------------------------------------------------------------
@@ -178,12 +182,21 @@ class FinnieWorkflow:
                     seen.add(s["title"])
                     sources.append(s)
 
-        final = {"content": content, "sources": sources, "agents": [r["agent"] for r in mine]}
+        return {"final": {"content": content, "sources": sources, "agents": [r["agent"] for r in mine]}}
+
+    async def _guardrail_node(self, state: FinnieState) -> dict:
+        """Education-not-advice check on the merged answer; also what we store as memory."""
+        final = dict(state["final"])
+        result = await apply_guardrail(
+            state["query"], final["content"], self.llm, add_disclaimer=final["agents"] != ["router"]
+        )
+        final["content"] = result.content
+        final["guardrail"] = {"flagged": result.flagged, "reasons": result.reasons}
         return {
             "final": final,
             "messages": [
                 {"role": "user", "content": state["query"]},
-                {"role": "assistant", "content": content},
+                {"role": "assistant", "content": result.content},
             ],
         }
 
@@ -217,6 +230,7 @@ class FinnieWorkflow:
             sources=final["sources"],
             agents=final["agents"],
             route=out["route"],
+            guardrail=final.get("guardrail", {}),
             responses=[r for r in out["responses"] if r["turn"] == out["turn"]],
             thread_id=thread_id,
             turn=out["turn"],

@@ -176,6 +176,11 @@ class MarketDataService:
                     await self._sleep(2**attempt)  # exponential backoff: 1s, 2s, ...
         raise MarketDataError(str(last))
 
+    def clear_cache(self) -> None:
+        """Drop cached quotes/history (used by the UI's refresh button)."""
+        self._quotes.clear()
+        self._history.clear()
+
     async def get_quote(self, symbol: str) -> Quote:
         sym = symbol.upper()
         now = self._clock()
