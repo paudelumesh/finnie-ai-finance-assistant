@@ -10,3 +10,4 @@ htmlcov/
 src/data/index/
 *.faiss
 .streamlit/secrets.toml
+cloud_secrets.toml

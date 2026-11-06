@@ -8,7 +8,7 @@ import streamlit as st
 from src.core.auth import (
     AuthConfig, AuthConfigError, LoginThrottle, check_credentials, new_session, session_valid,
 )
-from src.core.settings import load_auth_credentials, secrets_available
+from src.core.settings import load_auth_credentials, secrets_available, secrets_problem
 
 FAILURE_DELAY_SECONDS = 1.0  # slows down guessing from a single connection
 
@@ -48,14 +48,18 @@ def require_login() -> str | None:
         cfg = _config()
     except AuthConfigError as exc:  # fail closed: a misconfigured app is locked, never open
         st.title("💬 Finnie")
-        # Tell the owner whether ANY secrets exist (not their names or values) to speed up fixing setup.
-        hint = (
-            "Secrets exist for this app, but none of them is named AUTH_EMAIL / AUTH_PASSWORD_HASH. "
-            "Check the spelling and that each line looks like KEY = \"value\"."
-            if secrets_available()
-            else "No secrets are configured for this app at all. Add them in the app's "
-                 "Settings > Secrets, save, then reboot the app."
-        )
+        # Tell the owner what the app can see (never key names or values) to speed up fixing setup.
+        problem = None if secrets_available() else secrets_problem()
+        if secrets_available():
+            hint = ("Secrets exist for this app, but none of them is named AUTH_EMAIL / AUTH_PASSWORD_HASH. "
+                    "Check the spelling and that each line looks like KEY = \"value\".")
+        elif problem:
+            hint = (f"The secrets you saved are not valid TOML, so Streamlit ignored all of them ({problem}). "
+                    "Typical causes: curly quotes instead of straight quotes (\"), a value without quotes, or an "
+                    "unclosed quote. Fix it in Settings > Secrets, save, then reboot the app.")
+        else:
+            hint = ("No secrets reach this app. Check that you edited the secrets of THIS app (your app list may "
+                    "contain an older deployment), that you saved, and then reboot the app.")
         st.error(f"This app is locked. {exc}\n\n{hint}")
         return None
 

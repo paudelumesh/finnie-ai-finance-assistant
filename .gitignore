@@ -9,3 +9,4 @@ htmlcov/
 *.pkl
 .DS_Store
 .streamlit/secrets.toml
+cloud_secrets.toml

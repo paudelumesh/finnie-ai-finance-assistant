@@ -146,3 +146,75 @@ def test_set_password_prints_values_without_write_env_and_rejects_short(tmp_path
     monkeypatch.setattr(sys, "stdin", io.StringIO("short"))
     with pytest.raises(SystemExit, match="at least"):
         set_password.main()
+
+
+# ---- detecting an unparsable secrets file ---------------------------------------------------------
+@pytest.fixture
+def isolated_secrets(tmp_path, monkeypatch):
+    from src.core import settings as settings_module
+    home, cwd, root = tmp_path / "home", tmp_path / "cwd", tmp_path / "root"
+    for d in (home, cwd, root):
+        (d / ".streamlit").mkdir(parents=True)
+    monkeypatch.setattr(settings_module.Path, "home", classmethod(lambda cls: home))
+    monkeypatch.chdir(cwd)
+    monkeypatch.setattr(settings_module, "ROOT_DIR", root)
+    return home / ".streamlit" / "secrets.toml"
+
+
+@pytest.mark.parametrize("text, where", [
+    ('AUTH_EMAIL = \u201cme@x.co\u201d\n', "line 1, column 14"),          # curly quotes
+    ('AUTH_EMAIL = me@x.co\n', "line 1"),                                  # no quotes
+    ('A = "ok"\nB = "unclosed\n', "line 2"),                              # unclosed quote on another line
+])
+def test_invalid_toml_is_reported_with_position_only(isolated_secrets, text, where):
+    from src.core.settings import secrets_problem
+    isolated_secrets.write_text(text)
+    msg = secrets_problem()
+    assert msg and where in msg
+    assert "me@x.co" not in msg and "unclosed" not in msg  # never echoes the secret text
+
+
+def test_valid_empty_or_missing_secrets_report_no_problem(isolated_secrets):
+    from src.core.settings import secrets_problem
+    assert secrets_problem() is None                      # no file
+    isolated_secrets.write_text("   \n")
+    assert secrets_problem() is None                      # empty
+    isolated_secrets.write_text('AUTH_EMAIL = "me@x.co"\n')
+    assert secrets_problem() is None                      # valid
+
+
+# ---- scripts/export_secrets -------------------------------------------------------------------------
+def test_export_secrets_writes_valid_toml_that_round_trips(tmp_path, capsys):
+    import tomllib
+    from scripts import export_secrets
+    env = tmp_path / ".env"
+    tricky_hash = hash_password("a long enough password")
+    env.write_text(f'OPENAI_API_KEY=sk-test\nTAVILY_API_KEY=tvly-1\nAUTH_EMAIL=me@x.co\n'
+                   f'AUTH_PASSWORD_HASH={tricky_hash}\nGOOGLE_API_KEY=unused\n')
+    out = tmp_path / "cloud_secrets.toml"
+    export_secrets.main(env, out)
+    parsed = tomllib.loads(out.read_text())
+    assert parsed == {"OPENAI_API_KEY": "sk-test", "TAVILY_API_KEY": "tvly-1", "AUTH_EMAIL": "me@x.co",
+                      "AUTH_PASSWORD_HASH": tricky_hash}  # unrelated keys excluded, hash intact ($ and = preserved)
+    assert oct(out.stat().st_mode & 0o777) == "0o600"
+    printed = capsys.readouterr().out
+    assert "sk-test" not in printed and tricky_hash not in printed and "4 secrets" in printed
+
+
+def test_export_secrets_quotes_awkward_values_and_skips_optional_blank(tmp_path):
+    import tomllib
+    from scripts.export_secrets import build_toml
+    text = build_toml({"OPENAI_API_KEY": 'sk-"quoted"\\path', "AUTH_EMAIL": " a@b.co ", "AUTH_PASSWORD_HASH": "h$1",
+                       "TAVILY_API_KEY": "  "})
+    parsed = tomllib.loads(text)
+    assert parsed["OPENAI_API_KEY"] == 'sk-"quoted"\\path' and parsed["AUTH_EMAIL"] == "a@b.co"
+    assert "TAVILY_API_KEY" not in parsed
+
+
+def test_export_secrets_refuses_when_required_values_missing(tmp_path):
+    from scripts import export_secrets
+    env = tmp_path / ".env"
+    env.write_text("OPENAI_API_KEY=sk-x\n")
+    with pytest.raises(SystemExit, match="AUTH_EMAIL, AUTH_PASSWORD_HASH"):
+        export_secrets.main(env, tmp_path / "out.toml")
+    assert not (tmp_path / "out.toml").exists()

@@ -200,8 +200,14 @@ def test_common_secrets_paste_mistakes_still_work(cloud_like, monkeypatch, secre
 
 def test_locked_screen_distinguishes_no_secrets_from_wrong_names(cloud_like, monkeypatch):
     none = _cloud_app(monkeypatch, {}).run()
-    assert "No secrets are configured for this app at all" in none.error[0].value
+    assert "No secrets reach this app" in none.error[0].value
     wrong = _cloud_app(monkeypatch, {"OPENAI_API_KEY": "sk-x"}).run()
     msg = wrong.error[0].value
     assert "Secrets exist for this app, but none of them is named" in msg
     assert "OPENAI_API_KEY" not in msg and "sk-x" not in msg  # still no key names or values
+
+
+def test_locked_screen_reports_invalid_toml_position_but_not_content(cloud_like, monkeypatch):
+    monkeypatch.setattr(login, "secrets_problem", lambda: "Invalid value (at line 1, column 14)")
+    msg = _cloud_app(monkeypatch, {}).run().error[0].value
+    assert "not valid TOML" in msg and "line 1, column 14" in msg and "curly quotes" in msg

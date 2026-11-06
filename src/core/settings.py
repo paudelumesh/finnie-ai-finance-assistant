@@ -103,6 +103,38 @@ def secrets_available() -> bool:
         return False
 
 
+def _secrets_file_candidates() -> list[Path]:
+    seen: list[Path] = []
+    for base in (Path.home(), Path.cwd(), ROOT_DIR):
+        p = base / ".streamlit" / "secrets.toml"
+        if p not in seen:
+            seen.append(p)
+    return seen
+
+
+def secrets_problem() -> str | None:
+    """If a secrets file exists but is not valid TOML, return where (line/column only, never content).
+
+    Streamlit silently discards an unparsable secrets file and reports "not found", which looks
+    exactly like having saved nothing. Typical causes: curly "smart" quotes, values without quotes,
+    or an unclosed quote anywhere in the block.
+    """
+    import tomllib
+
+    for path in _secrets_file_candidates():
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if not text.strip():
+            continue
+        try:
+            tomllib.loads(text)
+        except tomllib.TOMLDecodeError as exc:
+            return str(exc)  # e.g. "Invalid value (at line 1, column 14)"; no secret text included
+    return None
+
+
 def _read_secret(name: str) -> str | None:
     """Env var first (covers .env); fall back to st.secrets when running on Streamlit Cloud."""
     value = os.getenv(name)
