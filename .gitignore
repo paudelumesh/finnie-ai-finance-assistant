@@ -6,7 +6,6 @@ __pycache__/
 .coverage
 htmlcov/
 .cache/
-*.faiss
 *.pkl
-src/data/index/
 .DS_Store
+.streamlit/secrets.toml
