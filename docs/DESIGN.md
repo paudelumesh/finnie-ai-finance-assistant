@@ -109,7 +109,7 @@ Each result carries a `source` (`live | cache | stale | mock | sample`) shown in
 
 ## 8. UI architecture
 
-Streamlit reruns the script on every interaction, so heavy objects (workflow, services, model) live in `st.cache_resource`. A background thread runs one event loop; tabs call `Runtime.run(coro)`. Session state holds the thread id, chat log, profile, holdings, last analysis and plan. Charts are pure functions (`charts.py`) returning Plotly figures with a validated colour palette (fixed categorical slot order, ink-coloured labels, one axis per chart). Every data display shows its freshness label. The About Finnie menu opens each topic in a modal dialog, with diagrams rendered by Graphviz.
+Streamlit reruns the script on every interaction, so heavy objects (workflow, services, model) live in `st.cache_resource`. A background thread runs one event loop; tabs call `Runtime.run(coro)`. Session state holds the thread id, chat log, profile, holdings, last analysis and plan. Charts are pure functions (`charts.py`) returning Plotly figures with a validated colour palette (fixed categorical slot order, ink-coloured labels, one axis per chart). Every data display shows its freshness label. The About Finnie menu sits at the top right beside Streamlit's toolbar (fixed-position CSS, refined by a small script that measures the toolbar). Choosing an item opens a modal; because `st.popover` cannot be closed from code, the popover key includes a counter that is bumped on selection so the menu re-renders closed. Diagrams are rendered by Graphviz.
 
 ## 9. Error handling summary
 

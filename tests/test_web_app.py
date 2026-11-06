@@ -140,6 +140,39 @@ def test_about_menu_items_open_without_errors(app):
         assert not app.exception, label
 
 
+def test_about_menu_is_top_right_not_in_the_sidebar(app):
+    assert not [b for b in app.sidebar.button if b.key and b.key.startswith("about_")]
+    assert [b for b in app.button if b.key and b.key.startswith("about_")]  # but it is on the page
+    css = [m.value for m in app.markdown if "st-key-about_menu" in m.value]
+    assert css and "position: fixed" in css[0] and "--finnie-about-right" in css[0]
+
+
+def test_choosing_an_item_opens_its_dialog_and_closes_the_menu(app, monkeypatch):
+    import streamlit as st
+    from src.web_app import about_menu
+    label = "🏗️ Architecture"
+    monkeypatch.setitem(about_menu.MENU, label, lambda: st.markdown("DIALOG-OPENED:architecture"))
+    assert app.session_state.about_nonce == 0
+    before = next(b for b in app.button if b.key == f"about_{label}")
+    before.click().run()
+    assert [m.value for m in app.markdown].count("DIALOG-OPENED:architecture") == 1  # dialog opened once
+    assert app.session_state.about_nonce == 1                                        # popover key changed => closed
+    assert "about_pending" not in app.session_state                                  # consumed, won't reopen
+    app.run()  # any later interaction must not reopen the dialog
+    assert "DIALOG-OPENED:architecture" not in [m.value for m in app.markdown]
+
+
+def test_menu_items_each_dispatch_their_own_dialog(app, monkeypatch):
+    import streamlit as st
+    from src.web_app import about_menu
+    for label in list(about_menu.MENU):
+        monkeypatch.setitem(about_menu.MENU, label, lambda l=label: st.markdown(f"OPEN:{l}"))
+    for label in list(about_menu.MENU):
+        next(b for b in app.button if b.key == f"about_{label}").click().run()
+        opened = [m.value for m in app.markdown if m.value.startswith("OPEN:")]
+        assert opened == [f"OPEN:{label}"], (label, opened)
+
+
 def test_diagrams_are_valid_dot_and_content_is_consistent():
     from src.web_app import about_content as c
     for dot in (c.SYSTEM_DIAGRAM, c.FLOW_DIAGRAM, c.GRAPH_DIAGRAM, c.RESILIENCE_DIAGRAM, c.RAG_DIAGRAM):
@@ -148,3 +181,27 @@ def test_diagrams_are_valid_dot_and_content_is_consistent():
     for node in ("agent_finance_qa", "agent_portfolio_analysis", "agent_market_analysis",
                  "agent_goal_planning", "agent_tax_education", "agent_news_synthesizer", "guardrail"):
         assert node in c.GRAPH_DIAGRAM
+
+
+def test_measure_script_uses_st_iframe_when_available_else_components(monkeypatch):
+    import streamlit as st
+    import streamlit.components.v1 as components
+    from src.web_app import about_menu
+    calls = []
+    monkeypatch.setattr(st, "iframe", lambda src, **kw: calls.append(("iframe", kw)), raising=False)
+    monkeypatch.setattr(components, "html", lambda src, **kw: calls.append(("components", kw)))
+    about_menu._embed_measure_script()
+    monkeypatch.delattr(st, "iframe", raising=False)
+    about_menu._embed_measure_script()
+    assert [c[0] for c in calls] == ["iframe", "components"]
+
+
+def test_measure_script_failure_never_breaks_the_menu(monkeypatch):
+    import streamlit as st
+    from src.web_app import about_menu
+
+    def boom(*a, **k):
+        raise RuntimeError("iframe unavailable")
+
+    monkeypatch.setattr(st, "iframe", boom, raising=False)
+    about_menu._embed_measure_script()  # must not raise

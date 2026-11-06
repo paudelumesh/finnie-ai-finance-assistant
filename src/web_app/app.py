@@ -44,7 +44,6 @@ def _sidebar(email: str) -> None:
         ss.profile["knowledge_level"] = st.selectbox(
             "Investing knowledge", LEVELS, index=LEVELS.index(ss.profile["knowledge_level"]))
         st.divider()
-        about_menu.render_menu()
         if st.button("🗑️ New conversation", width="stretch"):
             ss.chat, ss.thread_id = [], default_session()["thread_id"]
             st.rerun()
@@ -65,6 +64,7 @@ def main() -> None:
         return
 
     _sidebar(email)
+    about_menu.render_menu()  # fixed to the top right, beside Streamlit's toolbar
     st.title("💬 Finnie")
     st.caption("Your friendly guide to investing, with plain-English answers.")
     disclaimer_banner()

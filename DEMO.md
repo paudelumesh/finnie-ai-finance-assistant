@@ -19,6 +19,6 @@ Run: `streamlit run src/web_app/app.py` (needs `.env` keys and `python -m script
    - "How are capital gains taxed?" → Tax agent
    - "Who won the world cup?" → polite refusal
 
-5. **About Finnie + MCP** (sidebar menu, then Claude Desktop)
-   - Sidebar → ℹ️ About Finnie → open Architecture, High-level design, Technical architecture, Technologies (each opens as a modal)
+5. **About Finnie + MCP** (top-right menu, then Claude Desktop)
+   - Top-right ℹ️ About Finnie menu → open Architecture, High-level design, Technical architecture, Technologies (each opens as a modal)
    - Claude Desktop with the MCP config from the README: ask for a quote, then a savings plan

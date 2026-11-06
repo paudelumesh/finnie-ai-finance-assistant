@@ -42,7 +42,7 @@ flowchart TB
   A -.-> OAI
 ```
 
-Full detail, including agent communication, RAG internals and performance notes, is in [`docs/DESIGN.md`](docs/DESIGN.md). The same material is in the app under **About Finnie** (sidebar).
+Full detail, including agent communication, RAG internals and performance notes, is in [`docs/DESIGN.md`](docs/DESIGN.md). The same material is in the app under **About Finnie** (top-right menu).
 
 ## Quick start
 

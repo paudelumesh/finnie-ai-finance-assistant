@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Callable
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src.web_app import about_content as c
 
@@ -160,12 +161,71 @@ MENU: dict[str, Callable[[], None]] = {
 }
 
 
+# --- placement: top right, just left of Streamlit's own toolbar (Share / menu) -------------------------
+# The fixed offset is a fallback; a tiny script measures the real toolbar and refines it, so it also
+# fits the different toolbars of local runs (Deploy) and Streamlit Cloud (Share, star, GitHub...).
+_MENU_CSS = """
+<style>
+:root { --finnie-about-right: 15rem; }
+.st-key-about_menu { position: fixed; top: 0.75rem; right: var(--finnie-about-right);
+                     z-index: 1000000; width: auto !important; }
+.st-key-about_menu button { white-space: nowrap; }
+@media (max-width: 640px) { :root { --finnie-about-right: 4rem; } }
+</style>
+"""
+
+_MEASURE_JS = """
+<script>
+(function () {
+  const doc = window.parent.document;
+  function place() {
+    const tb = doc.querySelector('[data-testid="stToolbar"]');
+    if (!tb) return;
+    const r = tb.getBoundingClientRect();
+    if (r.width > 0 && window.parent.innerWidth > 640) {
+      doc.documentElement.style.setProperty('--finnie-about-right',
+        (window.parent.innerWidth - r.left + 10) + 'px');
+    }
+  }
+  place();
+  const t = setInterval(place, 500);          // the toolbar renders late and can change
+  setTimeout(() => clearInterval(t), 15000);
+  window.parent.addEventListener('resize', place);
+})();
+</script>
+"""
+
+
+def _embed_measure_script() -> None:
+    """Run the toolbar-measuring script. st.components.v1.html is deprecated in favour of st.iframe,
+    so use the new call when present. Placement is cosmetic: never let this break the app."""
+    try:
+        if hasattr(st, "iframe"):
+            st.iframe(_MEASURE_JS, height=1)
+        else:
+            components.html(_MEASURE_JS, height=0)
+    except Exception:
+        pass  # the CSS fallback offset still places the menu
+
+
 def render_menu() -> None:
-    """Sidebar menu. The dialog opens after the popover so it is a top-level modal."""
-    chosen = None
-    with st.popover("ℹ️ About Finnie", width="stretch"):
-        for label in MENU:
-            if st.button(label, key=f"about_{label}", width="stretch"):
-                chosen = label
-    if chosen:
-        MENU[chosen]()
+    """Top-right 'About Finnie' menu; each item opens a modal and the menu closes itself.
+
+    st.popover cannot be closed from code, so choosing an item bumps a counter that is part of the
+    popover's key. Streamlit then sees a brand-new (closed) popover on the rerun, and the chosen
+    dialog is opened from `about_pending` in that same rerun.
+    """
+    ss = st.session_state
+    ss.setdefault("about_nonce", 0)
+    st.markdown(_MENU_CSS, unsafe_allow_html=True)
+    with st.container(key="about_menu"):
+        with st.popover("ℹ️ About Finnie", key=f"about_popover_{ss.about_nonce}"):
+            for label in MENU:
+                if st.button(label, key=f"about_{label}", width="stretch"):
+                    ss.about_pending = label
+                    ss.about_nonce += 1
+                    st.rerun()
+    _embed_measure_script()
+    pending = ss.pop("about_pending", None)
+    if pending in MENU:
+        MENU[pending]()
