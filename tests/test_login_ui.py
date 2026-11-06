@@ -184,3 +184,24 @@ def test_locked_screen_names_only_the_missing_setting(cloud_like, monkeypatch):
     msg = at.error[0].value
     assert "AUTH_PASSWORD_HASH not found" in msg and "AUTH_EMAIL not found" not in msg
     assert "OPENAI_API_KEY" not in msg and "sk-secret" not in msg and EMAIL not in msg
+
+
+@pytest.mark.parametrize("secrets", [
+    {"auth_email": EMAIL, "auth_password_hash": HASH},                         # lowercase names
+    {"Auth_Email": EMAIL, "AUTH_PASSWORD_HASH": HASH},                         # mixed case
+    {"general": {"AUTH_EMAIL": EMAIL, "AUTH_PASSWORD_HASH": HASH}},            # pasted under a [section]
+    {"AUTH_EMAIL": f"  {EMAIL}  ", "AUTH_PASSWORD_HASH": f" {HASH} "},          # stray whitespace
+])
+def test_common_secrets_paste_mistakes_still_work(cloud_like, monkeypatch, secrets):
+    at = _cloud_app(monkeypatch, secrets).run()
+    assert not at.error, [e.value for e in at.error]
+    assert "auth" in sign_in(at).session_state
+
+
+def test_locked_screen_distinguishes_no_secrets_from_wrong_names(cloud_like, monkeypatch):
+    none = _cloud_app(monkeypatch, {}).run()
+    assert "No secrets are configured for this app at all" in none.error[0].value
+    wrong = _cloud_app(monkeypatch, {"OPENAI_API_KEY": "sk-x"}).run()
+    msg = wrong.error[0].value
+    assert "Secrets exist for this app, but none of them is named" in msg
+    assert "OPENAI_API_KEY" not in msg and "sk-x" not in msg  # still no key names or values

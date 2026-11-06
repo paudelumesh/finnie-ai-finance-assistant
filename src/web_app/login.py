@@ -8,7 +8,7 @@ import streamlit as st
 from src.core.auth import (
     AuthConfig, AuthConfigError, LoginThrottle, check_credentials, new_session, session_valid,
 )
-from src.core.settings import load_auth_credentials
+from src.core.settings import load_auth_credentials, secrets_available
 
 FAILURE_DELAY_SECONDS = 1.0  # slows down guessing from a single connection
 
@@ -48,7 +48,15 @@ def require_login() -> str | None:
         cfg = _config()
     except AuthConfigError as exc:  # fail closed: a misconfigured app is locked, never open
         st.title("💬 Finnie")
-        st.error(f"This app is locked. {exc}")
+        # Tell the owner whether ANY secrets exist (not their names or values) to speed up fixing setup.
+        hint = (
+            "Secrets exist for this app, but none of them is named AUTH_EMAIL / AUTH_PASSWORD_HASH. "
+            "Check the spelling and that each line looks like KEY = \"value\"."
+            if secrets_available()
+            else "No secrets are configured for this app at all. Add them in the app's "
+                 "Settings > Secrets, save, then reboot the app."
+        )
+        st.error(f"This app is locked. {exc}\n\n{hint}")
         return None
 
     left, mid, right = st.columns([1, 1.2, 1])

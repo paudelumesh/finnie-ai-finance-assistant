@@ -72,16 +72,45 @@ class Settings(BaseModel):
     secrets: Secrets = Field(default_factory=Secrets)
 
 
+def _lookup_streamlit_secret(name: str) -> str | None:
+    """Find `name` in st.secrets, tolerating the common paste mistakes: different capitalisation,
+    or the keys sitting inside a [section] table (one level deep)."""
+    import streamlit as st
+
+    secrets, wanted = st.secrets, name.lower()
+    tables = []
+    for key in secrets:
+        value = secrets[key]
+        if str(key).lower() == wanted and isinstance(value, str) and value.strip():
+            return value.strip()
+        if hasattr(value, "keys"):
+            tables.append(value)
+    for table in tables:
+        for key in table:
+            value = table[key]
+            if str(key).lower() == wanted and isinstance(value, str) and value.strip():
+                return value.strip()
+    return None
+
+
+def secrets_available() -> bool:
+    """True if Streamlit has any secrets configured at all (says nothing about their names)."""
+    try:
+        import streamlit as st
+
+        return len(st.secrets) > 0
+    except Exception:
+        return False
+
+
 def _read_secret(name: str) -> str | None:
     """Env var first (covers .env); fall back to st.secrets when running on Streamlit Cloud."""
     value = os.getenv(name)
     if value:
         return value
-    try:  # pragma: no cover - only exercised inside Streamlit
-        import streamlit as st
-
-        return st.secrets.get(name)
-    except Exception:
+    try:
+        return _lookup_streamlit_secret(name)
+    except Exception:  # no secrets file / not running under Streamlit
         return None
 
 
