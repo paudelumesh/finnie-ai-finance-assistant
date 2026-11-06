@@ -33,11 +33,18 @@ async def test_ungrounded_answer_is_flagged(retriever):
     assert NO_KB_NOTE in resp.content and DISCLAIMER in resp.content
 
 
-async def test_category_context_restricts_retrieval(retriever):
+async def test_strict_category_restricts_retrieval(retriever):
     resp = await FinanceQAAgent(FakeLLM("ok"), retriever).run(
-        "interest", {"category": "funds"}
+        "exchange traded fund basket of stocks", {"category": "funds", "category_strict": True}
     )
-    assert all(s.category == "funds" for s in resp.sources)
+    assert resp.sources and all(s.category == "funds" for s in resp.sources)
+
+
+async def test_router_category_is_only_a_hint(retriever):
+    resp = await FinanceQAAgent(FakeLLM("ok"), retriever).run(
+        "what is compound interest?", {"category": "funds"}
+    )
+    assert resp.sources[0].title == "Compound interest"
 
 
 async def test_knowledge_level_reaches_prompt(retriever):

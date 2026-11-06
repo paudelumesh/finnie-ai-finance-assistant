@@ -38,6 +38,16 @@ class Retriever:
         self.top_k = top_k
         self.min_score = min_score
 
-    def retrieve(self, query: str, category: str | None = None) -> RetrievalResult:
-        hits = self.store.search(query, self.top_k, category, self.min_score)
+    def retrieve(
+        self, query: str, category: str | None = None, strict: bool = False, margin: float = 0.05
+    ) -> RetrievalResult:
+        """`strict` filters hard (user-chosen category). Otherwise `category` is only a hint
+        (e.g. guessed by the router) and is used only if it doesn't hide a clearly better match."""
+        if category and strict:
+            return RetrievalResult(self.store.search(query, self.top_k, category, self.min_score))
+        hits = self.store.search(query, self.top_k, None, self.min_score)
+        if category:
+            preferred = self.store.search(query, self.top_k, category, self.min_score)
+            if preferred and (not hits or preferred[0].score >= hits[0].score - margin):
+                hits = preferred
         return RetrievalResult(hits)

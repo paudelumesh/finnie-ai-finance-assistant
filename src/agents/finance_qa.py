@@ -37,7 +37,9 @@ class FinanceQAAgent(BaseAgent):
         self.retriever = retriever
 
     async def _handle(self, query: str, context: dict[str, Any]) -> AgentResponse:
-        result = self.retriever.retrieve(query, category=context.get("category"))
+        result = self.retriever.retrieve(
+            query, category=context.get("category"), strict=bool(context.get("category_strict"))
+        )
         level = context.get("profile", {}).get("knowledge_level")
         level_hint = f"\nThe learner's level is: {level}." if level else ""
 

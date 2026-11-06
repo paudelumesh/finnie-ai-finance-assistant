@@ -38,6 +38,8 @@ class RAGSettings(BaseModel):
 
 class RouterSettings(BaseModel):
     confidence_threshold: float = 0.6
+    classifier_timeout_seconds: int = 15
+    agent_timeout_seconds: int = 60
 
 
 class LoggingSettings(BaseModel):

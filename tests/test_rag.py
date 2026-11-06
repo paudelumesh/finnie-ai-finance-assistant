@@ -111,3 +111,18 @@ def test_retriever_context_and_deduped_sources(store):
     assert result.context_block().startswith("[1] (")
     slugs = [s.title for s in result.sources()]
     assert len(slugs) == len(set(slugs))
+
+
+def test_soft_category_does_not_hide_better_match(store):
+    r = Retriever(store, top_k=2, min_score=0.0)
+    # 'retirement' only holds the Roth article, but the query is clearly about compound interest
+    soft = r.retrieve("compound interest earns interest on interest", category="retirement")
+    assert soft.hits[0].chunk.slug == "compound"
+    strict = r.retrieve("compound interest earns interest on interest", category="retirement", strict=True)
+    assert all(h.chunk.category == "retirement" for h in strict.hits)
+
+
+def test_soft_category_used_when_it_is_competitive(store):
+    r = Retriever(store, top_k=2, min_score=0.0)
+    soft = r.retrieve("exchange traded fund expense ratios", category="funds")
+    assert soft.hits[0].chunk.category == "funds"

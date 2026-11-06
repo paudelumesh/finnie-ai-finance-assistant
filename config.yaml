@@ -20,6 +20,8 @@ rag:
 
 router:
   confidence_threshold: 0.6
+  classifier_timeout_seconds: 15
+  agent_timeout_seconds: 60
 
 logging:
   level: INFO
