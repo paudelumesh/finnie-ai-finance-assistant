@@ -205,3 +205,16 @@ def test_measure_script_failure_never_breaks_the_menu(monkeypatch):
 
     monkeypatch.setattr(st, "iframe", boom, raising=False)
     about_menu._embed_measure_script()  # must not raise
+
+
+def test_menu_placement_measures_real_header_buttons_not_the_toolbar_container():
+    """Regression: the toolbar container spans the whole header, so measuring its edge pushed the menu
+    to the far left. The script must measure the leftmost real button in the header's right half, and
+    work at every width (a narrow-screen shortcut made the menu overlap the buttons)."""
+    from src.web_app import about_menu
+    js, css = about_menu._MEASURE_JS, about_menu._MENU_CSS
+    assert '[data-testid="stHeader"] button' in js and '[data-testid="stHeader"] a' in js
+    assert "r.left > win.innerWidth / 2" in js           # ignore the sidebar toggle on the left
+    assert "getBoundingClientRect" in js and "stToolbar\"]')" not in js.split("forEach")[0]  # no container query
+    assert "innerWidth <= 640" not in js and "max-width" not in css   # no narrow-screen special case
+    assert "top: 16px" in css                             # vertically centred on the 28px header buttons

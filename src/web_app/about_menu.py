@@ -161,36 +161,38 @@ MENU: dict[str, Callable[[], None]] = {
 }
 
 
-# --- placement: top right, just left of Streamlit's own toolbar (Share / menu) -------------------------
-# The fixed offset is a fallback; a tiny script measures the real toolbar and refines it, so it also
-# fits the different toolbars of local runs (Deploy) and Streamlit Cloud (Share, star, GitHub...).
+# --- placement: top right, immediately left of Streamlit's own header buttons (Share / Deploy / menu) --------
+# The header's toolbar *container* spans the whole header width, so its edge says nothing about where the
+# buttons are. A small script finds the leftmost real button in the header's right half instead and sets
+# --finnie-about-right to sit just left of it. The CSS value is only a fallback if the script cannot run.
 _MENU_CSS = """
 <style>
-:root { --finnie-about-right: 15rem; }
-.st-key-about_menu { position: fixed; top: 0.75rem; right: var(--finnie-about-right);
+:root { --finnie-about-right: 9rem; }
+.st-key-about_menu { position: fixed; top: 16px; right: var(--finnie-about-right);
                      z-index: 1000000; width: auto !important; }
-.st-key-about_menu button { white-space: nowrap; }
-@media (max-width: 640px) { :root { --finnie-about-right: 4rem; } }
+.st-key-about_menu button { white-space: nowrap; min-height: 28px; padding: 0 0.7rem; font-size: 0.875rem; }
 </style>
 """
 
 _MEASURE_JS = """
 <script>
 (function () {
-  const doc = window.parent.document;
+  const win = window.parent, doc = win.document;
   function place() {
-    const tb = doc.querySelector('[data-testid="stToolbar"]');
-    if (!tb) return;
-    const r = tb.getBoundingClientRect();
-    if (r.width > 0 && window.parent.innerWidth > 640) {
-      doc.documentElement.style.setProperty('--finnie-about-right',
-        (window.parent.innerWidth - r.left + 10) + 'px');
+    let left = Infinity;
+    doc.querySelectorAll('[data-testid="stHeader"] button, [data-testid="stHeader"] a, ' +
+                         '[data-testid="stToolbar"] button, [data-testid="stToolbar"] a').forEach(function (e) {
+      const r = e.getBoundingClientRect();
+      if (r.width > 0 && r.top < 80 && r.left > win.innerWidth / 2) left = Math.min(left, r.left);
+    });
+    if (left < Infinity) {
+      doc.documentElement.style.setProperty('--finnie-about-right', (win.innerWidth - left + 8) + 'px');
     }
   }
   place();
-  const t = setInterval(place, 500);          // the toolbar renders late and can change
-  setTimeout(() => clearInterval(t), 15000);
-  window.parent.addEventListener('resize', place);
+  const t = setInterval(place, 500);          // host toolbar items (Share, ...) arrive late and can change
+  setTimeout(function () { clearInterval(t); }, 20000);
+  win.addEventListener('resize', place);
 })();
 </script>
 """
